@@ -1,0 +1,22 @@
+{
+  "name": "marketplace",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.13",
+    "hardhat": "^2.22.19",
+    "solidity-coverage": "^0.8.14"
+  },
+  "scripts": {
+    "deploy": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/Marketplace.ts --network localhost",
+    "deploy:quest": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network localhost",
+    "test": "npx hardhat test",
+    "test:quest": "npx hardhat test test/QuestManager.ts",
+    "test:marketplace": "npx hardhat test test/Marketplace.ts",
+    "compile": "npx hardhat compile",
+    "clean": "npx hardhat clean"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0",
+    "dotenv": "^16.4.7"
+  }
+}
