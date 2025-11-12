@@ -22,6 +22,7 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
 
     mapping(string => Quest) public quests;
     mapping(string => mapping(address => bool)) public hasClaimedReward;
+    mapping(string => mapping(address => uint256)) public rewardAmountClaimed; // Track accumulated reward amounts
     string[] public questIds;
     mapping(address => bool) public supportedTokens;
 
@@ -42,6 +43,11 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
         address indexed winner,
         uint256 amount
     );
+    event ReferrerRewardSent(
+        string indexed questId,
+        address indexed referrer,
+        uint256 amount
+    );
     event QuestStatusUpdated(string indexed id, bool isActive);
     event RemainingRewardClaimed(
         string indexed questId,
@@ -49,10 +55,10 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
         uint256 amount
     );
 
-    constructor(address _tokenAddr) Ownable(msg.sender) {
-        require(_tokenAddr != address(0), "Invalid Token address");
-        supportedTokens[_tokenAddr] = true;
-        emit TokenSupported(_tokenAddr, true);
+    constructor(address _tokenAddress) Ownable(msg.sender) {
+        require(_tokenAddress != address(0), "Invalid Token address");
+        supportedTokens[_tokenAddress] = true;
+        emit TokenSupported(_tokenAddress, true);
     }
 
     modifier questExists(string memory _questId) {
@@ -66,7 +72,7 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
     }
 
     function addSupportedToken(address _token) external onlyOwner {
-        require(_token != address(0), "Token not supported");
+        require(_token != address(0), "Invalid token");
         supportedTokens[_token] = true;
         emit TokenSupported(_token, true);
     }
@@ -163,7 +169,10 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
     function sendReward(
         string memory _questId,
         address _winner,
-        uint256 _amount
+        uint256 _mainWinnerAmount,
+        address[] memory _referrerWinners,
+        uint256[] memory _referrerAmounts,
+        bool _skipClaimedCheck
     )
         external
         onlyOwner
@@ -174,24 +183,73 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
     {
         Quest storage q = quests[_questId];
 
+        // Validate referrer arrays match
         require(
-            q.totalRewardDistributed + _amount <= q.amount,
+            _referrerWinners.length == _referrerAmounts.length,
+            "Referrer winners and amounts arrays must have the same length"
+        );
+
+        // Calculate total reward amount
+        uint256 referrerTotal = 0;
+        for (uint256 i = 0; i < _referrerAmounts.length; i++) {
+            referrerTotal += _referrerAmounts[i];
+        }
+
+        uint256 totalRewardAmount = _mainWinnerAmount + referrerTotal;
+        require(totalRewardAmount > 0, "Total reward amount must be > 0");
+
+        require(
+            q.totalRewardDistributed + totalRewardAmount <= q.amount,
             "Insufficient reward balance. Reddibuct your quest."
         );
-        require(!hasClaimedReward[_questId][_winner], "Already rewarded");
+
+        // Check if main winner has already claimed (only if skip_claimed_check is false)
+        if (!_skipClaimedCheck) {
+            require(!hasClaimedReward[_questId][_winner], "Already rewarded");
+        }
+
         require(q.totalWinners < q.maxWinners, "Max winners limit reached");
 
+        // Update quest state
+        q.totalRewardDistributed += totalRewardAmount;
+
+        // Only increment total_winners if this is the first time claiming for this winner
+        if (!hasClaimedReward[_questId][_winner]) {
+            q.totalWinners += 1;
+        }
+
+        // Initialize or update reward claimed account for main winner
         hasClaimedReward[_questId][_winner] = true;
-        q.totalRewardDistributed += _amount;
-        q.totalWinners += 1;
+        rewardAmountClaimed[_questId][_winner] += _mainWinnerAmount; // Accumulate reward amount for multiple sends
 
-        bool transferSuccess = IERC20(q.tokenAddress).transfer(
-            _winner,
-            _amount
-        );
-        require(transferSuccess, "Token transfer failed");
+        // Transfer reward tokens to main winner
+        if (_mainWinnerAmount > 0) {
+            bool transferSuccess = IERC20(q.tokenAddress).transfer(
+                _winner,
+                _mainWinnerAmount
+            );
+            require(transferSuccess, "Token transfer failed");
+            emit RewardSent(_questId, _winner, _mainWinnerAmount);
+        }
 
-        emit RewardSent(_questId, _winner, _amount);
+        // Transfer reward tokens to each referrer
+        for (uint256 i = 0; i < _referrerWinners.length; i++) {
+            if (_referrerAmounts[i] > 0) {
+                bool referrerTransferSuccess = IERC20(q.tokenAddress).transfer(
+                    _referrerWinners[i],
+                    _referrerAmounts[i]
+                );
+                require(
+                    referrerTransferSuccess,
+                    "Referrer token transfer failed"
+                );
+                emit ReferrerRewardSent(
+                    _questId,
+                    _referrerWinners[i],
+                    _referrerAmounts[i]
+                );
+            }
+        }
     }
 
     function updateQuestStatus(
@@ -210,6 +268,13 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
 
     function getAllQuestIds() external view returns (string[] memory) {
         return questIds;
+    }
+
+    function getRewardAmountClaimed(
+        string memory _questId,
+        address _winner
+    ) external view returns (uint256) {
+        return rewardAmountClaimed[_questId][_winner];
     }
 
     function withdrawAllETH() external onlyOwner nonReentrant {

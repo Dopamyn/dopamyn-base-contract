@@ -622,7 +622,14 @@ describe("QuestManager", function () {
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, otherAccount.address, rewardAmount)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            rewardAmount,
+            [],
+            [],
+            false
+          )
       )
         .to.emit(questManager, "RewardSent")
         .withArgs(questId, otherAccount.address, rewardAmount);
@@ -663,12 +670,26 @@ describe("QuestManager", function () {
       // Send first reward
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount1);
+        .sendReward(
+          questId,
+          otherAccount.address,
+          rewardAmount1,
+          [],
+          [],
+          false
+        );
 
       // Send second reward
       await questManager
         .connect(owner)
-        .sendReward(questId, thirdAccount.address, rewardAmount2);
+        .sendReward(
+          questId,
+          thirdAccount.address,
+          rewardAmount2,
+          [],
+          [],
+          false
+        );
 
       const quest = await questManager.getQuest(questId);
       expect(quest.totalWinners).to.equal(2);
@@ -700,13 +721,13 @@ describe("QuestManager", function () {
       // Send first reward - should succeed
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // Try to send second reward - should fail due to maxWinners limit
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, creator.address, rewardAmount)
+          .sendReward(questId, creator.address, rewardAmount, [], [], false)
       ).to.be.revertedWith("Max winners limit reached");
 
       const quest = await questManager.getQuest(questId);
@@ -738,18 +759,18 @@ describe("QuestManager", function () {
       // Send first reward
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // Send second reward - should succeed
       await questManager
         .connect(owner)
-        .sendReward(questId, thirdAccount.address, rewardAmount);
+        .sendReward(questId, thirdAccount.address, rewardAmount, [], [], false);
 
       // Try to send third reward - should fail due to maxWinners limit (not balance)
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, creator.address, rewardAmount)
+          .sendReward(questId, creator.address, rewardAmount, [], [], false)
       ).to.be.revertedWith("Max winners limit reached");
 
       const quest = await questManager.getQuest(questId);
@@ -782,12 +803,12 @@ describe("QuestManager", function () {
       // Send first reward
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // Send second reward
       await questManager
         .connect(owner)
-        .sendReward(questId, thirdAccount.address, rewardAmount);
+        .sendReward(questId, thirdAccount.address, rewardAmount, [], [], false);
 
       const quest = await questManager.getQuest(questId);
       expect(quest.totalWinners).to.equal(2);
@@ -798,7 +819,7 @@ describe("QuestManager", function () {
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, creator.address, rewardAmount)
+          .sendReward(questId, creator.address, rewardAmount, [], [], false)
       ).to.emit(questManager, "RewardSent");
     });
 
@@ -826,19 +847,19 @@ describe("QuestManager", function () {
       // Send 5 rewards to different addresses
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       await questManager
         .connect(owner)
-        .sendReward(questId, thirdAccount.address, rewardAmount);
+        .sendReward(questId, thirdAccount.address, rewardAmount, [], [], false);
 
       await questManager
         .connect(owner)
-        .sendReward(questId, creator.address, rewardAmount);
+        .sendReward(questId, creator.address, rewardAmount, [], [], false);
 
       await questManager
         .connect(owner)
-        .sendReward(questId, owner.address, rewardAmount);
+        .sendReward(questId, owner.address, rewardAmount, [], [], false);
 
       // For the 5th reward, we need to create a new signer since we can't reuse addresses
       // Let's test the maxWinners limit by trying to send a 6th reward instead
@@ -851,14 +872,28 @@ describe("QuestManager", function () {
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, otherAccount.address, rewardAmount)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            rewardAmount,
+            [],
+            [],
+            false
+          )
       ).to.be.revertedWith("Already rewarded");
 
       // Try to send reward to a new address - should fail due to maxWinners limit
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, thirdAccount.address, rewardAmount)
+          .sendReward(
+            questId,
+            thirdAccount.address,
+            rewardAmount,
+            [],
+            [],
+            false
+          )
       ).to.be.revertedWith("Already rewarded");
     });
 
@@ -879,7 +914,14 @@ describe("QuestManager", function () {
       await expect(
         questManager
           .connect(otherAccount)
-          .sendReward(questId, thirdAccount.address, rewardAmount)
+          .sendReward(
+            questId,
+            thirdAccount.address,
+            rewardAmount,
+            [],
+            [],
+            false
+          )
       ).to.be.revertedWithCustomError(
         questManager,
         "OwnableUnauthorizedAccount"
@@ -897,7 +939,14 @@ describe("QuestManager", function () {
       await expect(
         questManager
           .connect(owner)
-          .sendReward(fakeQuestId, otherAccount.address, rewardAmount)
+          .sendReward(
+            fakeQuestId,
+            otherAccount.address,
+            rewardAmount,
+            [],
+            [],
+            false
+          )
       ).to.be.revertedWith("Quest does not exist");
     });
 
@@ -921,7 +970,14 @@ describe("QuestManager", function () {
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, otherAccount.address, rewardAmount)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            rewardAmount,
+            [],
+            [],
+            false
+          )
       ).to.be.revertedWith("Quest is not active");
     });
 
@@ -942,13 +998,20 @@ describe("QuestManager", function () {
       // Send reward once
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // Try to send reward again to same address
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, otherAccount.address, rewardAmount)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            rewardAmount,
+            [],
+            [],
+            false
+          )
       ).to.be.revertedWith("Already rewarded");
     });
 
@@ -970,7 +1033,14 @@ describe("QuestManager", function () {
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, otherAccount.address, rewardAmount)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            rewardAmount,
+            [],
+            [],
+            false
+          )
       ).to.be.revertedWith(
         "Insufficient reward balance. Reddibuct your quest."
       );
@@ -1001,13 +1071,27 @@ describe("QuestManager", function () {
       // Send first reward
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount1);
+        .sendReward(
+          questId,
+          otherAccount.address,
+          rewardAmount1,
+          [],
+          [],
+          false
+        );
 
       // Try to send second reward that would exceed remaining amount
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, thirdAccount.address, rewardAmount2)
+          .sendReward(
+            questId,
+            thirdAccount.address,
+            rewardAmount2,
+            [],
+            [],
+            false
+          )
       ).to.be.revertedWith(
         "Insufficient reward balance. Reddibuct your quest."
       );
@@ -1032,7 +1116,14 @@ describe("QuestManager", function () {
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, otherAccount.address, rewardAmount)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            rewardAmount,
+            [],
+            [],
+            false
+          )
       ).to.be.revertedWithCustomError(questManager, "EnforcedPause");
     });
 
@@ -1060,23 +1151,517 @@ describe("QuestManager", function () {
       // Send first reward
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // Send second reward
       await questManager
         .connect(owner)
-        .sendReward(questId, thirdAccount.address, rewardAmount);
+        .sendReward(questId, thirdAccount.address, rewardAmount, [], [], false);
 
       // Try to send third reward - should fail
       await expect(
         questManager
           .connect(owner)
-          .sendReward(questId, creator.address, rewardAmount)
+          .sendReward(questId, creator.address, rewardAmount, [], [], false)
       ).to.be.revertedWith("Max winners limit reached");
 
       const quest = await questManager.getQuest(questId);
       expect(quest.totalWinners).to.equal(2);
       expect(quest.maxWinners).to.equal(2);
+    });
+
+    it("Should send reward with single referrer successfully", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        otherAccount,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const mainRewardAmount = hre.ethers.parseEther("10");
+      const referrerAmount = hre.ethers.parseEther("5");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      const initialWinnerBalance = await mockUSDC.balanceOf(
+        otherAccount.address
+      );
+      const initialReferrerBalance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            mainRewardAmount,
+            [thirdAccount.address],
+            [referrerAmount],
+            false
+          )
+      )
+        .to.emit(questManager, "RewardSent")
+        .withArgs(questId, otherAccount.address, mainRewardAmount)
+        .and.to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, thirdAccount.address, referrerAmount);
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalWinners).to.equal(1);
+      expect(quest.totalRewardDistributed).to.equal(
+        mainRewardAmount + referrerAmount
+      );
+
+      const finalWinnerBalance = await mockUSDC.balanceOf(otherAccount.address);
+      const finalReferrerBalance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+
+      expect(finalWinnerBalance).to.equal(
+        initialWinnerBalance + mainRewardAmount
+      );
+      expect(finalReferrerBalance).to.equal(
+        initialReferrerBalance + referrerAmount
+      );
+    });
+
+    it("Should send reward with multiple referrers successfully", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        otherAccount,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const mainRewardAmount = hre.ethers.parseEther("10");
+      const referrerAmount1 = hre.ethers.parseEther("5");
+      const referrerAmount2 = hre.ethers.parseEther("3");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      const initialWinnerBalance = await mockUSDC.balanceOf(
+        otherAccount.address
+      );
+      const initialReferrer1Balance = await mockUSDC.balanceOf(creator.address);
+      const initialReferrer2Balance = await mockUSDC.balanceOf(owner.address);
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            mainRewardAmount,
+            [creator.address, owner.address],
+            [referrerAmount1, referrerAmount2],
+            false
+          )
+      )
+        .to.emit(questManager, "RewardSent")
+        .withArgs(questId, otherAccount.address, mainRewardAmount)
+        .and.to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, creator.address, referrerAmount1)
+        .and.to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, owner.address, referrerAmount2);
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalWinners).to.equal(1);
+      expect(quest.totalRewardDistributed).to.equal(
+        mainRewardAmount + referrerAmount1 + referrerAmount2
+      );
+
+      const finalWinnerBalance = await mockUSDC.balanceOf(otherAccount.address);
+      const finalReferrer1Balance = await mockUSDC.balanceOf(creator.address);
+      const finalReferrer2Balance = await mockUSDC.balanceOf(owner.address);
+
+      expect(finalWinnerBalance).to.equal(
+        initialWinnerBalance + mainRewardAmount
+      );
+      expect(finalReferrer1Balance).to.equal(
+        initialReferrer1Balance + referrerAmount1
+      );
+      expect(finalReferrer2Balance).to.equal(
+        initialReferrer2Balance + referrerAmount2
+      );
+    });
+
+    it("Should send reward with referrer but zero main winner amount", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        otherAccount,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const mainRewardAmount = 0n;
+      const referrerAmount = hre.ethers.parseEther("10");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      const initialReferrerBalance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            mainRewardAmount,
+            [thirdAccount.address],
+            [referrerAmount],
+            false
+          )
+      )
+        .to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, thirdAccount.address, referrerAmount)
+        .and.to.not.emit(questManager, "RewardSent");
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalRewardDistributed).to.equal(referrerAmount);
+
+      const finalReferrerBalance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+      expect(finalReferrerBalance).to.equal(
+        initialReferrerBalance + referrerAmount
+      );
+    });
+
+    it("Should revert when referrer arrays have mismatched lengths", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        otherAccount,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const mainRewardAmount = hre.ethers.parseEther("10");
+      const referrerAmount = hre.ethers.parseEther("5");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      // Mismatched arrays - 2 referrers but only 1 amount
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            mainRewardAmount,
+            [thirdAccount.address, creator.address],
+            [referrerAmount],
+            false
+          )
+      ).to.be.revertedWith(
+        "Referrer winners and amounts arrays must have the same length"
+      );
+    });
+
+    it("Should revert when total reward amount (main + referrers) exceeds quest amount", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        otherAccount,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const mainRewardAmount = hre.ethers.parseEther("60");
+      const referrerAmount = hre.ethers.parseEther("50"); // Total would be 110, exceeding 100
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            mainRewardAmount,
+            [thirdAccount.address],
+            [referrerAmount],
+            false
+          )
+      ).to.be.revertedWith(
+        "Insufficient reward balance. Reddibuct your quest."
+      );
+    });
+
+    it("Should handle referrer rewards with skipClaimedCheck flag", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        otherAccount,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const mainRewardAmount1 = hre.ethers.parseEther("10");
+      const mainRewardAmount2 = hre.ethers.parseEther("5");
+      const referrerAmount = hre.ethers.parseEther("3");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      // First reward
+      await questManager
+        .connect(owner)
+        .sendReward(
+          questId,
+          otherAccount.address,
+          mainRewardAmount1,
+          [],
+          [],
+          false
+        );
+
+      // Second reward to same winner with referrer, using skipClaimedCheck
+      const initialReferrerBalance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+
+      await expect(
+        questManager.connect(owner).sendReward(
+          questId,
+          otherAccount.address,
+          mainRewardAmount2,
+          [thirdAccount.address],
+          [referrerAmount],
+          true // Skip claimed check
+        )
+      )
+        .to.emit(questManager, "RewardSent")
+        .withArgs(questId, otherAccount.address, mainRewardAmount2)
+        .and.to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, thirdAccount.address, referrerAmount);
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalRewardDistributed).to.equal(
+        mainRewardAmount1 + mainRewardAmount2 + referrerAmount
+      );
+
+      const finalReferrerBalance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+      expect(finalReferrerBalance).to.equal(
+        initialReferrerBalance + referrerAmount
+      );
+    });
+
+    it("Should handle multiple referrers with zero amounts (skipped)", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        otherAccount,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const mainRewardAmount = hre.ethers.parseEther("10");
+      const referrerAmount1 = hre.ethers.parseEther("5");
+      const referrerAmount2 = 0n; // Zero amount - should be skipped
+      const referrerAmount3 = hre.ethers.parseEther("3");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      const initialReferrer1Balance = await mockUSDC.balanceOf(creator.address);
+      const initialReferrer2Balance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+      const initialReferrer3Balance = await mockUSDC.balanceOf(owner.address);
+
+      const tx = await questManager
+        .connect(owner)
+        .sendReward(
+          questId,
+          otherAccount.address,
+          mainRewardAmount,
+          [creator.address, thirdAccount.address, owner.address],
+          [referrerAmount1, referrerAmount2, referrerAmount3],
+          false
+        );
+
+      await expect(tx)
+        .to.emit(questManager, "RewardSent")
+        .withArgs(questId, otherAccount.address, mainRewardAmount)
+        .and.to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, creator.address, referrerAmount1)
+        .and.to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, owner.address, referrerAmount3);
+
+      // Verify that referrer with zero amount didn't receive tokens
+      // (no event emitted for zero amount referrer)
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalRewardDistributed).to.equal(
+        mainRewardAmount + referrerAmount1 + referrerAmount3
+      );
+
+      // Referrer 2 should not receive any tokens
+      const finalReferrer2Balance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+      expect(finalReferrer2Balance).to.equal(initialReferrer2Balance);
+    });
+
+    it("Should revert when total reward amount is zero (main + referrers)", async function () {
+      const { questManager, mockUSDC, creator, owner, otherAccount } =
+        await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const mainRewardAmount = 0n;
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            mainRewardAmount,
+            [],
+            [],
+            false
+          )
+      ).to.be.revertedWith("Total reward amount must be > 0");
+    });
+
+    it("Should handle referrer rewards in multiple sendReward calls", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        otherAccount,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const mainRewardAmount1 = hre.ethers.parseEther("10");
+      const mainRewardAmount2 = hre.ethers.parseEther("15");
+      const referrerAmount1 = hre.ethers.parseEther("5");
+      const referrerAmount2 = hre.ethers.parseEther("3");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      const initialReferrerBalance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+
+      // First reward with referrer
+      await questManager
+        .connect(owner)
+        .sendReward(
+          questId,
+          otherAccount.address,
+          mainRewardAmount1,
+          [thirdAccount.address],
+          [referrerAmount1],
+          false
+        );
+
+      // Second reward to different winner with same referrer
+      await questManager
+        .connect(owner)
+        .sendReward(
+          questId,
+          creator.address,
+          mainRewardAmount2,
+          [thirdAccount.address],
+          [referrerAmount2],
+          false
+        );
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalWinners).to.equal(2);
+      expect(quest.totalRewardDistributed).to.equal(
+        mainRewardAmount1 +
+          mainRewardAmount2 +
+          referrerAmount1 +
+          referrerAmount2
+      );
+
+      const finalReferrerBalance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+      expect(finalReferrerBalance).to.equal(
+        initialReferrerBalance + referrerAmount1 + referrerAmount2
+      );
     });
 
     it("Should revert when creating quest with zero max winners", async function () {
@@ -1203,7 +1788,7 @@ describe("QuestManager", function () {
       // Send some rewards
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // End the quest
       await questManager.connect(owner).updateQuestStatus(questId, false);
@@ -1246,7 +1831,7 @@ describe("QuestManager", function () {
       // Send some rewards
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // End the quest
       await questManager.connect(owner).updateQuestStatus(questId, false);
@@ -1296,7 +1881,7 @@ describe("QuestManager", function () {
       // Send some rewards
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // End the quest
       await questManager.connect(owner).updateQuestStatus(questId, false);
@@ -1329,7 +1914,7 @@ describe("QuestManager", function () {
       // Send some rewards
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // End the quest
       await questManager.connect(owner).updateQuestStatus(questId, false);
@@ -1360,7 +1945,7 @@ describe("QuestManager", function () {
       // Send some rewards
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // Quest is still active, don't end it
 
@@ -1401,7 +1986,7 @@ describe("QuestManager", function () {
       // Distribute all rewards (no remaining amount)
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, amount);
+        .sendReward(questId, otherAccount.address, amount, [], [], false);
 
       // End the quest
       await questManager.connect(owner).updateQuestStatus(questId, false);
@@ -1432,7 +2017,7 @@ describe("QuestManager", function () {
       // Send some rewards
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // End the quest
       await questManager.connect(owner).updateQuestStatus(questId, false);
@@ -1474,11 +2059,25 @@ describe("QuestManager", function () {
       // Send multiple rewards
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount1);
+        .sendReward(
+          questId,
+          otherAccount.address,
+          rewardAmount1,
+          [],
+          [],
+          false
+        );
 
       await questManager
         .connect(owner)
-        .sendReward(questId, thirdAccount.address, rewardAmount2);
+        .sendReward(
+          questId,
+          thirdAccount.address,
+          rewardAmount2,
+          [],
+          [],
+          false
+        );
 
       // End the quest
       await questManager.connect(owner).updateQuestStatus(questId, false);
@@ -1523,11 +2122,11 @@ describe("QuestManager", function () {
       const rewardAmount = hre.ethers.parseEther("30");
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       await questManager
         .connect(owner)
-        .sendReward(questId, thirdAccount.address, rewardAmount);
+        .sendReward(questId, thirdAccount.address, rewardAmount, [], [], false);
 
       // End the quest
       await questManager.connect(owner).updateQuestStatus(questId, false);
@@ -1566,7 +2165,7 @@ describe("QuestManager", function () {
       // Send almost all rewards
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // End the quest
       await questManager.connect(owner).updateQuestStatus(questId, false);
@@ -1605,7 +2204,7 @@ describe("QuestManager", function () {
       // Send some rewards
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // End the quest
       await questManager.connect(owner).updateQuestStatus(questId, false);
@@ -1639,7 +2238,7 @@ describe("QuestManager", function () {
       // Send some rewards
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       // End the quest
       await questManager.connect(owner).updateQuestStatus(questId, false);
@@ -1708,7 +2307,7 @@ describe("QuestManager", function () {
       // Send a reward
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardAmount);
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
 
       const quest = await questManager.getQuest(questId);
       expect(quest.totalWinners).to.equal(1);
@@ -1966,11 +2565,25 @@ describe("QuestManager", function () {
       // Send rewards to multiple winners
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardPerWinner);
+        .sendReward(
+          questId,
+          otherAccount.address,
+          rewardPerWinner,
+          [],
+          [],
+          false
+        );
 
       await questManager
         .connect(owner)
-        .sendReward(questId, thirdAccount.address, rewardPerWinner);
+        .sendReward(
+          questId,
+          thirdAccount.address,
+          rewardPerWinner,
+          [],
+          [],
+          false
+        );
 
       const quest = await questManager.getQuest(questId);
       expect(quest.totalWinners).to.equal(2);
@@ -2004,7 +2617,14 @@ describe("QuestManager", function () {
       // Send reward
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardPerWinner);
+        .sendReward(
+          questId,
+          otherAccount.address,
+          rewardPerWinner,
+          [],
+          [],
+          false
+        );
 
       const quest = await questManager.getQuest(questId);
       expect(quest.totalWinners).to.equal(1);
@@ -2038,7 +2658,14 @@ describe("QuestManager", function () {
       // Send reward
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardPerWinner);
+        .sendReward(
+          questId,
+          otherAccount.address,
+          rewardPerWinner,
+          [],
+          [],
+          false
+        );
 
       const quest = await questManager.getQuest(questId);
       expect(quest.totalWinners).to.equal(1);
@@ -2072,7 +2699,14 @@ describe("QuestManager", function () {
       // Send reward
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardPerWinner);
+        .sendReward(
+          questId,
+          otherAccount.address,
+          rewardPerWinner,
+          [],
+          [],
+          false
+        );
 
       const quest = await questManager.getQuest(questId);
       expect(quest.totalWinners).to.equal(1);
@@ -2115,11 +2749,11 @@ describe("QuestManager", function () {
 
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, reward1);
+        .sendReward(questId, otherAccount.address, reward1, [], [], false);
 
       await questManager
         .connect(owner)
-        .sendReward(questId, thirdAccount.address, reward2);
+        .sendReward(questId, thirdAccount.address, reward2, [], [], false);
 
       const quest = await questManager.getQuest(questId);
       expect(quest.totalWinners).to.equal(2);
@@ -2153,7 +2787,14 @@ describe("QuestManager", function () {
       // Send reward
       await questManager
         .connect(owner)
-        .sendReward(questId, otherAccount.address, rewardPerWinner);
+        .sendReward(
+          questId,
+          otherAccount.address,
+          rewardPerWinner,
+          [],
+          [],
+          false
+        );
 
       const quest = await questManager.getQuest(questId);
       expect(quest.totalWinners).to.equal(1);
