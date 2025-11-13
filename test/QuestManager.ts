@@ -1769,6 +1769,529 @@ describe("QuestManager", function () {
         initialReferrerBalance + referrerAmount1 + referrerAmount2
       );
     });
+  });
+
+  describe("sendReferrerRewards", function () {
+    it("Should send single referrer reward successfully", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const referrerAmount = hre.ethers.parseEther("10");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      const initialReferrerBalance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReferrerRewards(
+            questId,
+            [thirdAccount.address],
+            [referrerAmount]
+          )
+      )
+        .to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, thirdAccount.address, referrerAmount);
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalRewardDistributed).to.equal(referrerAmount);
+      expect(quest.totalWinners).to.equal(0); // Should not increment winners
+
+      const finalReferrerBalance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+      expect(finalReferrerBalance).to.equal(
+        initialReferrerBalance + referrerAmount
+      );
+    });
+
+    it("Should send multiple referrer rewards successfully", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const referrerAmount1 = hre.ethers.parseEther("10");
+      const referrerAmount2 = hre.ethers.parseEther("15");
+      const referrerAmount3 = hre.ethers.parseEther("5");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      const initialReferrer1Balance = await mockUSDC.balanceOf(
+        creator.address
+      );
+      const initialReferrer2Balance = await mockUSDC.balanceOf(owner.address);
+      const initialReferrer3Balance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReferrerRewards(
+            questId,
+            [creator.address, owner.address, thirdAccount.address],
+            [referrerAmount1, referrerAmount2, referrerAmount3]
+          )
+      )
+        .to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, creator.address, referrerAmount1)
+        .and.to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, owner.address, referrerAmount2)
+        .and.to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, thirdAccount.address, referrerAmount3);
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalRewardDistributed).to.equal(
+        referrerAmount1 + referrerAmount2 + referrerAmount3
+      );
+      expect(quest.totalWinners).to.equal(0);
+
+      const finalReferrer1Balance = await mockUSDC.balanceOf(creator.address);
+      const finalReferrer2Balance = await mockUSDC.balanceOf(owner.address);
+      const finalReferrer3Balance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+
+      expect(finalReferrer1Balance).to.equal(
+        initialReferrer1Balance + referrerAmount1
+      );
+      expect(finalReferrer2Balance).to.equal(
+        initialReferrer2Balance + referrerAmount2
+      );
+      expect(finalReferrer3Balance).to.equal(
+        initialReferrer3Balance + referrerAmount3
+      );
+    });
+
+    it("Should revert when referrer arrays have mismatched lengths", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const referrerAmount = hre.ethers.parseEther("10");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      // Mismatched arrays - 2 referrers but only 1 amount
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReferrerRewards(
+            questId,
+            [thirdAccount.address, creator.address],
+            [referrerAmount]
+          )
+      ).to.be.revertedWith(
+        "Referrer winners and amounts arrays must have the same length"
+      );
+    });
+
+    it("Should revert when referrer array exceeds maximum limit of 50", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("1000"); // Large amount to support many referrers
+      const referrerAmount = hre.ethers.parseEther("1");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      // Create arrays with 51 referrers (exceeds limit of 50)
+      const referrerWinners: string[] = [];
+      const referrerAmounts: bigint[] = [];
+
+      // Get signers to use as referrers
+      const signers = await hre.ethers.getSigners();
+
+      for (let i = 0; i < 51; i++) {
+        // Cycle through available signer addresses
+        const referrerAddress = signers[i % signers.length].address;
+        referrerWinners.push(referrerAddress);
+        referrerAmounts.push(referrerAmount);
+      }
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReferrerRewards(questId, referrerWinners, referrerAmounts)
+      ).to.be.revertedWith("Too many referrers (max 50)");
+    });
+
+    it("Should allow exactly 50 referrers", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("1000"); // Large amount to support 50 referrers
+      const referrerAmount = hre.ethers.parseEther("1");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      // Create arrays with exactly 50 referrers (at the limit)
+      const referrerWinners: string[] = [];
+      const referrerAmounts: bigint[] = [];
+
+      // Get signers to use as referrers
+      const signers = await hre.ethers.getSigners();
+
+      for (let i = 0; i < 50; i++) {
+        // Cycle through available signer addresses
+        const referrerAddress = signers[i % signers.length].address;
+        referrerWinners.push(referrerAddress);
+        referrerAmounts.push(referrerAmount);
+      }
+
+      // Should succeed with exactly 50 referrers
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReferrerRewards(questId, referrerWinners, referrerAmounts)
+      ).to.not.be.reverted;
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalRewardDistributed).to.equal(referrerAmount * 50n);
+    });
+
+    it("Should revert when total referrer reward amount exceeds quest amount", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const referrerAmount = hre.ethers.parseEther("110"); // Exceeds quest amount
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReferrerRewards(
+            questId,
+            [thirdAccount.address],
+            [referrerAmount]
+          )
+      ).to.be.revertedWith(
+        "Insufficient reward balance. Reddibuct your quest."
+      );
+    });
+
+    it("Should revert when total referrer reward amount is zero", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReferrerRewards(questId, [thirdAccount.address], [0n])
+      ).to.be.revertedWith("Total referrer reward amount must be > 0");
+    });
+
+    it("Should handle multiple referrers with zero amounts (skipped)", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const referrerAmount1 = hre.ethers.parseEther("10");
+      const referrerAmount2 = 0n; // Zero amount - should be skipped
+      const referrerAmount3 = hre.ethers.parseEther("5");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      const initialReferrer1Balance = await mockUSDC.balanceOf(creator.address);
+      const initialReferrer2Balance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+      const initialReferrer3Balance = await mockUSDC.balanceOf(owner.address);
+
+      const tx = await questManager
+        .connect(owner)
+        .sendReferrerRewards(
+          questId,
+          [creator.address, thirdAccount.address, owner.address],
+          [referrerAmount1, referrerAmount2, referrerAmount3]
+        );
+
+      await expect(tx)
+        .to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, creator.address, referrerAmount1)
+        .and.to.emit(questManager, "ReferrerRewardSent")
+        .withArgs(questId, owner.address, referrerAmount3);
+
+      // Verify that referrer with zero amount didn't receive tokens
+      // (no event emitted for zero amount referrer)
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalRewardDistributed).to.equal(
+        referrerAmount1 + referrerAmount3
+      );
+
+      // Referrer 2 should not receive any tokens
+      const finalReferrer2Balance = await mockUSDC.balanceOf(
+        thirdAccount.address
+      );
+      expect(finalReferrer2Balance).to.equal(initialReferrer2Balance);
+
+      // Other referrers should receive their rewards
+      const finalReferrer1Balance = await mockUSDC.balanceOf(creator.address);
+      const finalReferrer3Balance = await mockUSDC.balanceOf(owner.address);
+      expect(finalReferrer1Balance).to.equal(
+        initialReferrer1Balance + referrerAmount1
+      );
+      expect(finalReferrer3Balance).to.equal(
+        initialReferrer3Balance + referrerAmount3
+      );
+    });
+
+    it("Should update totalRewardDistributed correctly when combined with sendReward", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        otherAccount,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const mainRewardAmount = hre.ethers.parseEther("20");
+      const referrerAmount1 = hre.ethers.parseEther("10");
+      const referrerAmount2 = hre.ethers.parseEther("15");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      // First send main reward
+      await questManager
+        .connect(owner)
+        .sendReward(questId, otherAccount.address, mainRewardAmount, [], [], false);
+
+      // Then send referrer rewards separately
+      await questManager
+        .connect(owner)
+        .sendReferrerRewards(
+          questId,
+          [thirdAccount.address, creator.address],
+          [referrerAmount1, referrerAmount2]
+        );
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalRewardDistributed).to.equal(
+        mainRewardAmount + referrerAmount1 + referrerAmount2
+      );
+      expect(quest.totalWinners).to.equal(1); // Only main winner counted
+    });
+
+    it("Should revert when quest does not exist", async function () {
+      const { questManager, mockUSDC, owner, thirdAccount } =
+        await loadFixture(deployQuestManagerFixture);
+
+      const referrerAmount = hre.ethers.parseEther("10");
+      const nonExistentQuestId = "non_existent_quest";
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReferrerRewards(
+            nonExistentQuestId,
+            [thirdAccount.address],
+            [referrerAmount]
+          )
+      ).to.be.revertedWith("Quest does not exist");
+    });
+
+    it("Should revert when quest is not active", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const referrerAmount = hre.ethers.parseEther("10");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      // Deactivate quest
+      await questManager.connect(owner).updateQuestStatus(questId, false);
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReferrerRewards(
+            questId,
+            [thirdAccount.address],
+            [referrerAmount]
+          )
+      ).to.be.revertedWith("Quest is not active");
+    });
+
+    it("Should revert when called by non-owner", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const referrerAmount = hre.ethers.parseEther("10");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      await expect(
+        questManager
+          .connect(creator)
+          .sendReferrerRewards(
+            questId,
+            [thirdAccount.address],
+            [referrerAmount]
+          )
+      ).to.be.revertedWithCustomError(questManager, "OwnableUnauthorizedAccount");
+    });
+
+    it("Should revert when contract is paused", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        thirdAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const referrerAmount = hre.ethers.parseEther("10");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      // Pause contract
+      await questManager.connect(owner).pause();
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReferrerRewards(
+            questId,
+            [thirdAccount.address],
+            [referrerAmount]
+          )
+      ).to.be.revertedWithCustomError(questManager, "EnforcedPause");
+    });
 
     it("Should revert when creating quest with zero max winners", async function () {
       const { questManager, mockUSDC, creator } = await loadFixture(

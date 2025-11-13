@@ -188,12 +188,9 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
             _referrerWinners.length == _referrerAmounts.length,
             "Referrer winners and amounts arrays must have the same length"
         );
-        
+
         // Prevent DoS by limiting referrer array size
-        require(
-            _referrerWinners.length <= 50,
-            "Too many referrers (max 50)"
-        );
+        require(_referrerWinners.length <= 50, "Too many referrers (max 50)");
 
         // Calculate total reward amount
         uint256 referrerTotal = 0;
@@ -309,11 +306,76 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
         }
 
         // Only allow withdrawal of non-escrowed tokens
-        require(balance > totalEscrowed, "All tokens are escrowed for active quests");
+        require(
+            balance > totalEscrowed,
+            "All tokens are escrowed for active quests"
+        );
         uint256 withdrawableAmount = balance - totalEscrowed;
 
-        bool transferSuccess = IERC20(_tokenAddress).transfer(owner(), withdrawableAmount);
+        bool transferSuccess = IERC20(_tokenAddress).transfer(
+            owner(),
+            withdrawableAmount
+        );
         require(transferSuccess, "Token transfer failed");
+    }
+
+    function sendReferrerRewards(
+        string memory _questId,
+        address[] memory _referrerWinners,
+        uint256[] memory _referrerAmounts
+    )
+        external
+        onlyOwner
+        questExists(_questId)
+        onlyActive(_questId)
+        whenNotPaused
+        nonReentrant
+    {
+        Quest storage q = quests[_questId];
+
+        // Validate referrer arrays match
+        require(
+            _referrerWinners.length == _referrerAmounts.length,
+            "Referrer winners and amounts arrays must have the same length"
+        );
+
+        // Prevent DoS by limiting referrer array size
+        require(_referrerWinners.length <= 50, "Too many referrers (max 50)");
+
+        // Calculate total referrer reward amount
+        uint256 referrerTotal = 0;
+        for (uint256 i = 0; i < _referrerAmounts.length; i++) {
+            referrerTotal += _referrerAmounts[i];
+        }
+
+        require(referrerTotal > 0, "Total referrer reward amount must be > 0");
+
+        require(
+            q.totalRewardDistributed + referrerTotal <= q.amount,
+            "Insufficient reward balance. Reddibuct your quest."
+        );
+
+        // Update quest state
+        q.totalRewardDistributed += referrerTotal;
+
+        // Transfer reward tokens to each referrer
+        for (uint256 i = 0; i < _referrerWinners.length; i++) {
+            if (_referrerAmounts[i] > 0) {
+                bool referrerTransferSuccess = IERC20(q.tokenAddress).transfer(
+                    _referrerWinners[i],
+                    _referrerAmounts[i]
+                );
+                require(
+                    referrerTransferSuccess,
+                    "Referrer token transfer failed"
+                );
+                emit ReferrerRewardSent(
+                    _questId,
+                    _referrerWinners[i],
+                    _referrerAmounts[i]
+                );
+            }
+        }
     }
 
     function claimRemainingReward(
