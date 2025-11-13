@@ -188,6 +188,12 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
             _referrerWinners.length == _referrerAmounts.length,
             "Referrer winners and amounts arrays must have the same length"
         );
+        
+        // Prevent DoS by limiting referrer array size
+        require(
+            _referrerWinners.length <= 50,
+            "Too many referrers (max 50)"
+        );
 
         // Calculate total reward amount
         uint256 referrerTotal = 0;
@@ -291,7 +297,22 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
         uint256 balance = IERC20(_tokenAddress).balanceOf(address(this));
         require(balance > 0, "No tokens to withdraw");
 
-        bool transferSuccess = IERC20(_tokenAddress).transfer(owner(), balance);
+        // Calculate total escrowed amount for active quests using this token
+        uint256 totalEscrowed = 0;
+        for (uint256 i = 0; i < questIds.length; i++) {
+            Quest storage q = quests[questIds[i]];
+            if (q.tokenAddress == _tokenAddress && q.isActive) {
+                // Escrowed amount is the remaining unclaimed amount
+                uint256 remainingEscrowed = q.amount - q.totalRewardDistributed;
+                totalEscrowed += remainingEscrowed;
+            }
+        }
+
+        // Only allow withdrawal of non-escrowed tokens
+        require(balance > totalEscrowed, "All tokens are escrowed for active quests");
+        uint256 withdrawableAmount = balance - totalEscrowed;
+
+        bool transferSuccess = IERC20(_tokenAddress).transfer(owner(), withdrawableAmount);
         require(transferSuccess, "Token transfer failed");
     }
 

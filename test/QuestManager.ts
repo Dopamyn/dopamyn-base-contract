@@ -1396,6 +1396,112 @@ describe("QuestManager", function () {
       );
     });
 
+    it("Should revert when referrer array exceeds maximum limit of 50", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        otherAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("1000"); // Large amount to support many referrers
+      const mainRewardAmount = hre.ethers.parseEther("10");
+      const referrerAmount = hre.ethers.parseEther("1");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      // Create arrays with 51 referrers (exceeds limit of 50)
+      const referrerWinners: string[] = [];
+      const referrerAmounts: bigint[] = [];
+      
+      // Get signers to use as referrers (we'll reuse addresses since we only need to test the limit)
+      const signers = await hre.ethers.getSigners();
+      
+      for (let i = 0; i < 51; i++) {
+        // Cycle through available signer addresses
+        const referrerAddress = signers[i % signers.length].address;
+        referrerWinners.push(referrerAddress);
+        referrerAmounts.push(referrerAmount);
+      }
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            mainRewardAmount,
+            referrerWinners,
+            referrerAmounts,
+            false
+          )
+      ).to.be.revertedWith("Too many referrers (max 50)");
+    });
+
+    it("Should allow exactly 50 referrers", async function () {
+      const {
+        questManager,
+        mockUSDC,
+        creator,
+        owner,
+        otherAccount,
+      } = await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("1000"); // Large amount to support 50 referrers
+      const mainRewardAmount = hre.ethers.parseEther("10");
+      const referrerAmount = hre.ethers.parseEther("1");
+      const deadline = (await time.latest()) + 86400;
+      const maxWinners = 10;
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      const questId = generateQuestId();
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, maxWinners);
+
+      // Create arrays with exactly 50 referrers (at the limit)
+      const referrerWinners: string[] = [];
+      const referrerAmounts: bigint[] = [];
+      
+      // Get signers to use as referrers
+      const signers = await hre.ethers.getSigners();
+      
+      for (let i = 0; i < 50; i++) {
+        // Cycle through available signer addresses
+        const referrerAddress = signers[i % signers.length].address;
+        referrerWinners.push(referrerAddress);
+        referrerAmounts.push(referrerAmount);
+      }
+
+      // Should succeed with exactly 50 referrers
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReward(
+            questId,
+            otherAccount.address,
+            mainRewardAmount,
+            referrerWinners,
+            referrerAmounts,
+            false
+          )
+      )
+        .to.emit(questManager, "RewardSent")
+        .withArgs(questId, otherAccount.address, mainRewardAmount);
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.totalRewardDistributed).to.equal(
+        mainRewardAmount + referrerAmount * 50n
+      );
+    });
+
     it("Should revert when total reward amount (main + referrers) exceeds quest amount", async function () {
       const {
         questManager,
