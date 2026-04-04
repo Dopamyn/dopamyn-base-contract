@@ -9,6 +9,8 @@
   "scripts": {
     "deploy": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/Marketplace.ts --network localhost",
     "deploy:quest": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network localhost",
+    "deploy:quest:hedera:testnet": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network hedera-testnet",
+    "deploy:quest:hedera:testnet:direct": "npm run compile && node scripts/deployQuestManagerHedera.js",
     "test": "npx hardhat test",
     "test:quest": "npx hardhat test test/QuestManager.ts",
     "test:marketplace": "npx hardhat test test/Marketplace.ts",

@@ -35,6 +35,15 @@ const config: HardhatUserConfig = {
     localhost: {
       chainId: 31337,
     },
+    "hedera-testnet": {
+      url: process.env.HEDERA_TESTNET_RPC_URL || "https://testnet.hashio.io/api",
+      chainId: 296,
+      gas: 5_000_000,
+      gasPrice: 1_020_000_000_000,
+      accounts: process.env.HEDERA_TESTNET_PRIVATE_KEY
+        ? [process.env.HEDERA_TESTNET_PRIVATE_KEY]
+        : [],
+    },
     base: {
       url: process.env.BASE_ALCHEMY_RPC_URL || "",
       chainId: 8453,

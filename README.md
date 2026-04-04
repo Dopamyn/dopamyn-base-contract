@@ -96,6 +96,11 @@ Create a `.env` file in the root directory:
 PRIVATE_KEY=your_private_key_here
 INFURA_URL=your_infura_url_here
 ETHERSCAN_API_KEY=your_etherscan_api_key_here
+BASE_PRIVATE_KEY=your_base_private_key_here
+BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
+HEDERA_TESTNET_PRIVATE_KEY=your_hedera_ecdsa_private_key_here
+HEDERA_TESTNET_RPC_URL=https://testnet.hashio.io/api
+HEDERA_TESTNET_TOKEN_ADDRESS=erc20_token_address_for_hedera_testnet
 ```
 
 ### Compilation
@@ -129,6 +134,9 @@ npx hardhat run scripts/deploy.js --network sepolia
 
 # Deploy to Base testnet
 npx hardhat run scripts/deploy.js --network base-sepolia
+
+# Deploy QuestManager to Hedera testnet
+npm run deploy:quest:hedera:testnet
 ```
 
 ### Mainnet Deployment
@@ -461,4 +469,15 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - npm i
 - npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network base
+- npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network hedera-testnet
 - npx hardhat verify --network base 0xE0a3595CD2c9d697ec6C63Dd926085bBed58c64F 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+
+# Hedera Testnet
+
+The `QuestManager` contract is unchanged for Hedera. This branch only adds a Hedera testnet network target and deployment path for the same Solidity bytecode.
+
+- Network name: `hedera-testnet`
+- RPC: `https://testnet.hashio.io/api`
+- Chain ID: `296`
+- Deploy command: `npm run deploy:quest:hedera:testnet`
+- Token override priority: ignition `tokenAddress` parameter, then `QUEST_MANAGER_TOKEN_ADDRESS`, then `HEDERA_TESTNET_TOKEN_ADDRESS`
