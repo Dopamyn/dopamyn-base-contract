@@ -153,13 +153,23 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
     {
         Quest storage q = quests[_questId];
 
+        // Calculate remaining unspent escrow for this quest
+        uint256 remainingEscrowed = q.amount - q.totalRewardDistributed;
+        require(remainingEscrowed > 0, "No remaining escrow to refund");
+
         uint256 balance = IERC20(q.tokenAddress).balanceOf(address(this));
-        require(balance >= q.amount, "Insufficient contract token balance");
+        require(
+            balance >= remainingEscrowed,
+            "Insufficient contract token balance"
+        );
 
         q.isActive = false;
+        // Clear this quest's escrow obligation to prevent double refunds
+        q.amount = q.totalRewardDistributed;
+
         bool transferSuccess = IERC20(q.tokenAddress).transfer(
             q.creator,
-            q.amount
+            remainingEscrowed
         );
         require(transferSuccess, "Token transfer failed");
 
