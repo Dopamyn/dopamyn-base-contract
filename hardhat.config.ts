@@ -17,16 +17,25 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      "base-mainnet": process.env.BASESCAN_API_KEY || "",
+      base: process.env.BASESCAN_API_KEY || "",
+      "base-sepolia": process.env.BASESCAN_API_KEY || "",
     },
     enabled: true,
     customChains: [
       {
-        network: "base-mainnet",
+        network: "base",
         chainId: 8453,
         urls: {
-          apiURL: "https://api.etherscan.io/v2/api?chainid=8453",
-          browserURL: "https://etherscan.io",
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org",
+        },
+      },
+      {
+        network: "base-sepolia",
+        chainId: 84532,
+        urls: {
+          apiURL: "https://api-sepolia.basescan.org/api",
+          browserURL: "https://sepolia.basescan.org",
         },
       },
     ],
@@ -47,6 +56,13 @@ const config: HardhatUserConfig = {
     base: {
       url: process.env.BASE_ALCHEMY_RPC_URL || "",
       chainId: 8453,
+      accounts: process.env.BASE_PRIVATE_KEY
+        ? [process.env.BASE_PRIVATE_KEY]
+        : [],
+    },
+    "base-sepolia": {
+      url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+      chainId: 84532,
       accounts: process.env.BASE_PRIVATE_KEY
         ? [process.env.BASE_PRIVATE_KEY]
         : [],

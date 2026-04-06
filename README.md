@@ -97,7 +97,13 @@ PRIVATE_KEY=your_private_key_here
 INFURA_URL=your_infura_url_here
 ETHERSCAN_API_KEY=your_etherscan_api_key_here
 BASE_PRIVATE_KEY=your_base_private_key_here
+BASE_ALCHEMY_RPC_URL=https://mainnet.base.org
 BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
+BASE_MAINNET_USDC_ADDRESS=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+BASE_SEPOLIA_USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+BASE_SEPOLIA_QUEST_MANAGER_ADDRESS=deployed_contract_address_for_verify
+BASE_MAINNET_QUEST_MANAGER_ADDRESS=deployed_contract_address_for_verify
+BASESCAN_API_KEY=your_basescan_api_key_here
 HEDERA_TESTNET_PRIVATE_KEY=your_hedera_ecdsa_private_key_here
 HEDERA_TESTNET_RPC_URL=https://testnet.hashio.io/api
 HEDERA_TESTNET_TOKEN_ADDRESS=erc20_token_address_for_hedera_testnet
@@ -129,11 +135,11 @@ npx hardhat run scripts/deploy.js --network localhost
 ### Testnet Deployment
 
 ```bash
-# Deploy to Sepolia testnet
-npx hardhat run scripts/deploy.js --network sepolia
+# Deploy QuestManager to Base Sepolia
+npm run deploy:quest:base:sepolia
 
-# Deploy to Base testnet
-npx hardhat run scripts/deploy.js --network base-sepolia
+# Verify QuestManager on Base Sepolia
+npm run verify:quest:base:sepolia
 
 # Deploy QuestManager to Hedera testnet
 npm run deploy:quest:hedera:testnet
@@ -142,11 +148,11 @@ npm run deploy:quest:hedera:testnet
 ### Mainnet Deployment
 
 ```bash
-# Deploy to Ethereum mainnet
-npx hardhat run scripts/deploy.js --network mainnet
+# Deploy QuestManager to Base mainnet
+npm run deploy:quest:base:mainnet
 
-# Deploy to Base mainnet
-npx hardhat run scripts/deploy.js --network base
+# Verify QuestManager on Base mainnet
+npm run verify:quest:base:mainnet
 ```
 
 ## 📝 Usage Examples
@@ -468,9 +474,23 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 # Commands
 
 - npm i
+- npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network base-sepolia
 - npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network base
+- npx hardhat verify --network base-sepolia <deployed_address> $BASE_SEPOLIA_USDC_ADDRESS
+- npx hardhat verify --network base <deployed_address> $BASE_MAINNET_USDC_ADDRESS
 - npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network hedera-testnet
 - npx hardhat verify --network base 0xE0a3595CD2c9d697ec6C63Dd926085bBed58c64F 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+
+# Base Networks
+
+The `QuestManager` ignition module is shared across EVM deployments. Base Sepolia and Base Mainnet use the same module and constructor shape, with the token resolved by network-specific Base env variables.
+
+- Base Sepolia deploy command: `npm run deploy:quest:base:sepolia`
+- Base Sepolia verify command: `npm run verify:quest:base:sepolia`
+- Base Mainnet deploy command: `npm run deploy:quest:base:mainnet`
+- Base Mainnet verify command: `npm run verify:quest:base:mainnet`
+- Recommended rollout: deploy and verify on Base Sepolia first, then run the Base Mainnet deploy manually
+- If `hardhat-verify` reports a BaseScan API version error after submission, check the explorer page directly. The source upload may still have completed and the contract can already show as verified.
 
 # Hedera Testnet
 
