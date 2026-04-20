@@ -55,7 +55,60 @@ async function main() {
 
   await questManager.waitForDeployment();
 
-  console.log(`QuestManager deployed at: ${await questManager.getAddress()}`);
+  const deployedAddress = await questManager.getAddress();
+  console.log(`QuestManager deployed at: ${deployedAddress}`);
+
+  await verifyDeployment(deployedAddress, [tokenAddress], networkName);
+}
+
+async function verifyDeployment(
+  address: string,
+  constructorArgs: unknown[],
+  networkName: string
+) {
+  const skipNetworks = new Set(["localhost", "hardhat", "hedera-testnet"]);
+  if (skipNetworks.has(networkName)) {
+    console.log(`Skipping Etherscan verification on ${networkName}.`);
+    return;
+  }
+
+  if (!process.env.BASESCAN_API_KEY) {
+    console.warn(
+      "BASESCAN_API_KEY not set — skipping verification. Run `npx hardhat verify` manually once it's configured."
+    );
+    return;
+  }
+
+  // Give the block explorer a moment to index the deployment tx.
+  const waitConfirmations = 5;
+  console.log(
+    `Waiting ${waitConfirmations} confirmations before verification...`
+  );
+  const deployTx = await hre.ethers.provider.getCode(address);
+  if (deployTx === "0x") {
+    throw new Error(`No code at ${address} — deployment may have failed.`);
+  }
+  // Small delay so the explorer sees the contract.
+  await new Promise((resolve) => setTimeout(resolve, 20_000));
+
+  try {
+    console.log(`Verifying ${address} on ${networkName}...`);
+    await hre.run("verify:verify", {
+      address,
+      constructorArguments: constructorArgs,
+    });
+    console.log("Verification submitted successfully.");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.toLowerCase().includes("already verified")) {
+      console.log("Contract is already verified.");
+      return;
+    }
+    console.error("Verification failed:", message);
+    console.error(
+      `You can retry manually: npx hardhat verify --network ${networkName} ${address} ${constructorArgs.join(" ")}`
+    );
+  }
 }
 
 main().catch((error) => {

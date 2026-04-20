@@ -160,15 +160,26 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
     {
         Quest storage q = quests[_questId];
 
-        uint256 balance = IERC20(q.tokenAddress).balanceOf(address(this));
-        require(balance >= q.amount, "Insufficient contract token balance");
+        uint256 refundAmount = q.amount - q.totalRewardDistributed;
 
-        q.isActive = false;
-        bool transferSuccess = IERC20(q.tokenAddress).transfer(
-            q.creator,
-            q.amount
+        uint256 balance = IERC20(q.tokenAddress).balanceOf(address(this));
+        require(
+            balance >= refundAmount,
+            "Insufficient contract token balance"
         );
-        require(transferSuccess, "Token transfer failed");
+
+        // Close out the quest: mark inactive and zero the remaining claimable
+        // amount so it cannot be re-refunded via claimRemainingReward.
+        q.isActive = false;
+        q.amount = q.totalRewardDistributed;
+
+        if (refundAmount > 0) {
+            bool transferSuccess = IERC20(q.tokenAddress).transfer(
+                q.creator,
+                refundAmount
+            );
+            require(transferSuccess, "Token transfer failed");
+        }
 
         emit QuestCancelled(_questId);
     }

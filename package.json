@@ -2,16 +2,16 @@
   "name": "marketplace",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "@nomicfoundation/hardhat-verify": "^2.0.13",
+    "@nomicfoundation/hardhat-verify": "^2.1.3",
     "hardhat": "^2.22.19",
     "solidity-coverage": "^0.8.14"
   },
   "scripts": {
     "deploy": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/Marketplace.ts --network localhost",
     "deploy:quest": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network localhost",
-    "deploy:quest:base:sepolia": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network base-sepolia",
+    "deploy:quest:base:sepolia": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network base-sepolia --verify",
     "deploy:quest:base:sepolia:script": "npx hardhat compile && npx hardhat run scripts/deployQuestManager.ts --network base-sepolia",
-    "deploy:quest:base:mainnet": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network base",
+    "deploy:quest:base:mainnet": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network base --verify",
     "deploy:quest:base:mainnet:script": "npx hardhat compile && npx hardhat run scripts/deployQuestManager.ts --network base",
     "deploy:quest:hedera:testnet": "npx hardhat compile && npx hardhat ignition deploy ignition/modules/QuestManager.ts --network hedera-testnet",
     "deploy:quest:hedera:testnet:script": "npx hardhat compile && npx hardhat run scripts/deployQuestManager.ts --network hedera-testnet",
