@@ -599,6 +599,274 @@ describe("QuestManager", function () {
     });
   });
 
+  describe("Quest Top Up", function () {
+    it("Should allow the quest creator to top up amount and winners", async function () {
+      const { questManager, mockUSDC, creator } = await loadFixture(
+        deployQuestManagerFixture
+      );
+
+      const amount = hre.ethers.parseEther("100");
+      const additionalAmount = hre.ethers.parseEther("50");
+      const deadline = (await time.latest()) + 86400;
+      const questId = generateQuestId();
+
+      await mockUSDC
+        .connect(creator)
+        .approve(questManager.target, amount + additionalAmount);
+
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, 2);
+
+      const initialCreatorBalance = await mockUSDC.balanceOf(creator.address);
+      const initialContractBalance = await mockUSDC.balanceOf(
+        questManager.target
+      );
+
+      await expect(
+        questManager
+          .connect(creator)
+          .topUpQuest(questId, mockUSDC.target, additionalAmount, 3)
+      )
+        .to.emit(questManager, "QuestToppedUp")
+        .withArgs(
+          questId,
+          creator.address,
+          mockUSDC.target,
+          additionalAmount,
+          3
+        );
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.amount).to.equal(amount + additionalAmount);
+      expect(quest.maxWinners).to.equal(5);
+
+      const finalCreatorBalance = await mockUSDC.balanceOf(creator.address);
+      const finalContractBalance = await mockUSDC.balanceOf(
+        questManager.target
+      );
+
+      expect(finalCreatorBalance).to.equal(
+        initialCreatorBalance - additionalAmount
+      );
+      expect(finalContractBalance).to.equal(
+        initialContractBalance + additionalAmount
+      );
+    });
+
+    it("Should allow the admin to top up a quest with their own tokens", async function () {
+      const { questManager, mockUSDC, creator, owner } = await loadFixture(
+        deployQuestManagerFixture
+      );
+
+      const amount = hre.ethers.parseEther("100");
+      const additionalAmount = hre.ethers.parseEther("25");
+      const deadline = (await time.latest()) + 86400;
+      const questId = generateQuestId();
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, 2);
+
+      await mockUSDC.mint(owner.address, additionalAmount);
+      await mockUSDC.connect(owner).approve(questManager.target, additionalAmount);
+
+      await expect(
+        questManager
+          .connect(owner)
+          .topUpQuest(questId, mockUSDC.target, additionalAmount, 1)
+      )
+        .to.emit(questManager, "QuestToppedUp")
+        .withArgs(
+          questId,
+          owner.address,
+          mockUSDC.target,
+          additionalAmount,
+          1
+        );
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.amount).to.equal(amount + additionalAmount);
+      expect(quest.maxWinners).to.equal(3);
+    });
+
+    it("Should allow more rewards after a quest is topped up", async function () {
+      const { questManager, mockUSDC, creator, owner, otherAccount, thirdAccount } =
+        await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const additionalAmount = hre.ethers.parseEther("20");
+      const rewardAmount = hre.ethers.parseEther("30");
+      const deadline = (await time.latest()) + 86400;
+      const questId = generateQuestId();
+
+      await mockUSDC
+        .connect(creator)
+        .approve(questManager.target, amount + additionalAmount);
+
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, 1);
+
+      await questManager
+        .connect(owner)
+        .sendReward(questId, otherAccount.address, rewardAmount, [], [], false);
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReward(questId, thirdAccount.address, rewardAmount, [], [], false)
+      ).to.be.revertedWith("Max winners limit reached");
+
+      await questManager
+        .connect(creator)
+        .topUpQuest(questId, mockUSDC.target, additionalAmount, 1);
+
+      await expect(
+        questManager
+          .connect(owner)
+          .sendReward(questId, thirdAccount.address, rewardAmount, [], [], false)
+      ).to.emit(questManager, "RewardSent");
+
+      const quest = await questManager.getQuest(questId);
+      expect(quest.amount).to.equal(amount + additionalAmount);
+      expect(quest.maxWinners).to.equal(2);
+      expect(quest.totalWinners).to.equal(2);
+      expect(quest.totalRewardDistributed).to.equal(rewardAmount * 2n);
+    });
+
+    it("Should revert when a non-creator and non-admin tries to top up", async function () {
+      const { questManager, mockUSDC, creator, otherAccount } =
+        await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const deadline = (await time.latest()) + 86400;
+      const questId = generateQuestId();
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, 2);
+
+      await expect(
+        questManager
+          .connect(otherAccount)
+          .topUpQuest(questId, mockUSDC.target, hre.ethers.parseEther("10"), 1)
+      ).to.be.revertedWith("Only quest creator or admin can top up");
+    });
+
+    it("Should revert when top up token does not match the quest token", async function () {
+      const { questManager, mockUSDC, mockToken2, creator, owner } =
+        await loadFixture(deployQuestManagerFixture);
+
+      const amount = hre.ethers.parseEther("100");
+      const deadline = (await time.latest()) + 86400;
+      const questId = generateQuestId();
+
+      await questManager.connect(owner).addSupportedToken(mockToken2.target);
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, 2);
+
+      await expect(
+        questManager
+          .connect(creator)
+          .topUpQuest(questId, mockToken2.target, hre.ethers.parseEther("10"), 1)
+      ).to.be.revertedWith("Token must match quest token");
+    });
+
+    it("Should revert when top up does not increase amount or winners", async function () {
+      const { questManager, mockUSDC, creator } = await loadFixture(
+        deployQuestManagerFixture
+      );
+
+      const amount = hre.ethers.parseEther("100");
+      const deadline = (await time.latest()) + 86400;
+      const questId = generateQuestId();
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, 2);
+
+      await expect(
+        questManager.connect(creator).topUpQuest(questId, mockUSDC.target, 0, 0)
+      ).to.be.revertedWith("Must increase amount or winners");
+    });
+
+    it("Should revert when top up has insufficient allowance", async function () {
+      const { questManager, mockUSDC, creator } = await loadFixture(
+        deployQuestManagerFixture
+      );
+
+      const amount = hre.ethers.parseEther("100");
+      const additionalAmount = hre.ethers.parseEther("10");
+      const deadline = (await time.latest()) + 86400;
+      const questId = generateQuestId();
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, 2);
+
+      await expect(
+        questManager
+          .connect(creator)
+          .topUpQuest(questId, mockUSDC.target, additionalAmount, 1)
+      ).to.be.revertedWith("Insufficient allowance");
+    });
+
+    it("Should revert when topping up an inactive quest", async function () {
+      const { questManager, mockUSDC, creator, owner } = await loadFixture(
+        deployQuestManagerFixture
+      );
+
+      const amount = hre.ethers.parseEther("100");
+      const deadline = (await time.latest()) + 86400;
+      const questId = generateQuestId();
+
+      await mockUSDC.connect(creator).approve(questManager.target, amount);
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, 2);
+
+      await questManager.connect(owner).updateQuestStatus(questId, false);
+
+      await expect(
+        questManager
+          .connect(creator)
+          .topUpQuest(questId, mockUSDC.target, hre.ethers.parseEther("10"), 1)
+      ).to.be.revertedWith("Quest is not active");
+    });
+
+    it("Should revert when topping up while paused", async function () {
+      const { questManager, mockUSDC, creator, owner } = await loadFixture(
+        deployQuestManagerFixture
+      );
+
+      const amount = hre.ethers.parseEther("100");
+      const deadline = (await time.latest()) + 86400;
+      const questId = generateQuestId();
+
+      await mockUSDC
+        .connect(creator)
+        .approve(questManager.target, amount + hre.ethers.parseEther("10"));
+      await questManager
+        .connect(creator)
+        .createQuest(questId, mockUSDC.target, amount, deadline, 2);
+
+      await questManager.connect(owner).pause();
+
+      await expect(
+        questManager
+          .connect(creator)
+          .topUpQuest(questId, mockUSDC.target, hre.ethers.parseEther("10"), 1)
+      ).to.be.revertedWithCustomError(questManager, "EnforcedPause");
+    });
+  });
+
   describe("Reward Distribution", function () {
     it("Should send reward successfully", async function () {
       const { questManager, mockUSDC, creator, owner, otherAccount } =

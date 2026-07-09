@@ -49,6 +49,13 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
         uint256 amount
     );
     event QuestStatusUpdated(string indexed id, bool isActive);
+    event QuestToppedUp(
+        string indexed questId,
+        address indexed funder,
+        address indexed token,
+        uint256 additionalAmount,
+        uint256 additionalWinners
+    );
     event RemainingRewardClaimed(
         string indexed questId,
         address indexed creator,
@@ -153,15 +160,26 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
     {
         Quest storage q = quests[_questId];
 
-        uint256 balance = IERC20(q.tokenAddress).balanceOf(address(this));
-        require(balance >= q.amount, "Insufficient contract token balance");
+        uint256 refundAmount = q.amount - q.totalRewardDistributed;
 
-        q.isActive = false;
-        bool transferSuccess = IERC20(q.tokenAddress).transfer(
-            q.creator,
-            q.amount
+        uint256 balance = IERC20(q.tokenAddress).balanceOf(address(this));
+        require(
+            balance >= refundAmount,
+            "Insufficient contract token balance"
         );
-        require(transferSuccess, "Token transfer failed");
+
+        // Close out the quest: mark inactive and zero the remaining claimable
+        // amount so it cannot be re-refunded via claimRemainingReward.
+        q.isActive = false;
+        q.amount = q.totalRewardDistributed;
+
+        if (refundAmount > 0) {
+            bool transferSuccess = IERC20(q.tokenAddress).transfer(
+                q.creator,
+                refundAmount
+            );
+            require(transferSuccess, "Token transfer failed");
+        }
 
         emit QuestCancelled(_questId);
     }
@@ -261,6 +279,61 @@ contract QuestManager is Ownable, Pausable, ReentrancyGuard {
     ) external onlyOwner questExists(_questId) {
         quests[_questId].isActive = _newStatus;
         emit QuestStatusUpdated(_questId, _newStatus);
+    }
+
+    function topUpQuest(
+        string memory _questId,
+        address _tokenAddress,
+        uint256 _additionalAmount,
+        uint256 _additionalWinners
+    )
+        external
+        questExists(_questId)
+        onlyActive(_questId)
+        whenNotPaused
+        nonReentrant
+    {
+        Quest storage q = quests[_questId];
+
+        require(
+            msg.sender == q.creator || msg.sender == owner(),
+            "Only quest creator or admin can top up"
+        );
+        require(
+            _additionalAmount > 0 || _additionalWinners > 0,
+            "Must increase amount or winners"
+        );
+        require(
+            _tokenAddress == q.tokenAddress,
+            "Token must match quest token"
+        );
+        require(supportedTokens[_tokenAddress], "Token not supported");
+
+        if (_additionalAmount > 0) {
+            uint256 allowance = IERC20(_tokenAddress).allowance(
+                msg.sender,
+                address(this)
+            );
+            require(allowance >= _additionalAmount, "Insufficient allowance");
+
+            bool transferSuccess = IERC20(_tokenAddress).transferFrom(
+                msg.sender,
+                address(this),
+                _additionalAmount
+            );
+            require(transferSuccess, "Token transfer failed");
+        }
+
+        q.amount += _additionalAmount;
+        q.maxWinners += _additionalWinners;
+
+        emit QuestToppedUp(
+            _questId,
+            msg.sender,
+            _tokenAddress,
+            _additionalAmount,
+            _additionalWinners
+        );
     }
 
     function getQuest(
