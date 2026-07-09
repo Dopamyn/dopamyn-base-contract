@@ -30,7 +30,13 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: etherscanApiKey,
+    apiKey: {
+      base: etherscanApiKey,
+      "base-sepolia": etherscanApiKey,
+      arbitrum: etherscanApiKey,
+      "arbitrum-sepolia": etherscanApiKey,
+      robinhood: "blockscout",
+    },
     enabled: true,
     customChains: [
       {
@@ -63,6 +69,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api.etherscan.io/v2/api?chainid=421614",
           browserURL: "https://sepolia.arbiscan.io",
+        },
+      },
+      {
+        network: "robinhood",
+        chainId: 4663,
+        urls: {
+          apiURL: "https://robinhoodchain.blockscout.com/api",
+          browserURL: "https://robinhoodchain.blockscout.com",
         },
       },
     ],
@@ -104,6 +118,14 @@ const config: HardhatUserConfig = {
         "https://sepolia-rollup.arbitrum.io/rpc",
       chainId: 421614,
       accounts: deployerAccounts(),
+    },
+    robinhood: {
+      url:
+        process.env.ROBINHOOD_ALCHEMY_RPC_URL ||
+        process.env.ROBINHOOD_RPC_URL ||
+        "https://robinhood-mainnet.g.alchemy.com/v2/",
+      chainId: 4663,
+      accounts: deployerAccounts(process.env.ROBINHOOD_PRIVATE_KEY),
     },
   },
 };

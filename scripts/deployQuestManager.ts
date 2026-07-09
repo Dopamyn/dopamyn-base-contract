@@ -27,6 +27,11 @@ function getTokenAddressForNetwork(networkName: string): string | undefined {
         process.env.ARBITRUM_SEPOLIA_USDC_ADDRESS ||
         "0x75faf114eafb1BDbe2Ff44834Adf6D4B8f2f6C4"
       );
+    case "robinhood":
+      return (
+        process.env.ROBINHOOD_USDG_ADDRESS ||
+        "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"
+      );
     case "hedera-testnet":
       return process.env.HEDERA_TESTNET_TOKEN_ADDRESS;
     default:
