@@ -5,6 +5,20 @@ import "solidity-coverage";
 
 import "dotenv/config";
 
+/** Same deployer key as Base unless ARBITRUM_PRIVATE_KEY is set explicitly. */
+function deployerAccounts(
+  networkPrivateKey = process.env.ARBITRUM_PRIVATE_KEY ||
+    process.env.BASE_PRIVATE_KEY
+): string[] {
+  return networkPrivateKey ? [networkPrivateKey] : [];
+}
+
+const etherscanApiKey =
+  process.env.ETHERSCAN_API_KEY ||
+  process.env.ARBISCAN_API_KEY ||
+  process.env.BASESCAN_API_KEY ||
+  "";
+
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.26",
@@ -16,7 +30,7 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: process.env.BASESCAN_API_KEY || "",
+    apiKey: etherscanApiKey,
     enabled: true,
     customChains: [
       {
@@ -33,6 +47,22 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api.etherscan.io/v2/api?chainid=84532",
           browserURL: "https://sepolia.basescan.org",
+        },
+      },
+      {
+        network: "arbitrum",
+        chainId: 42161,
+        urls: {
+          apiURL: "https://api.etherscan.io/v2/api?chainid=42161",
+          browserURL: "https://arbiscan.io",
+        },
+      },
+      {
+        network: "arbitrum-sepolia",
+        chainId: 421614,
+        urls: {
+          apiURL: "https://api.etherscan.io/v2/api?chainid=421614",
+          browserURL: "https://sepolia.arbiscan.io",
         },
       },
     ],
@@ -53,16 +83,27 @@ const config: HardhatUserConfig = {
     base: {
       url: process.env.BASE_ALCHEMY_RPC_URL || "",
       chainId: 8453,
-      accounts: process.env.BASE_PRIVATE_KEY
-        ? [process.env.BASE_PRIVATE_KEY]
-        : [],
+      accounts: deployerAccounts(process.env.BASE_PRIVATE_KEY),
     },
     "base-sepolia": {
       url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
       chainId: 84532,
-      accounts: process.env.BASE_PRIVATE_KEY
-        ? [process.env.BASE_PRIVATE_KEY]
-        : [],
+      accounts: deployerAccounts(process.env.BASE_PRIVATE_KEY),
+    },
+    arbitrum: {
+      url:
+        process.env.ARBITRUM_RPC_URL ||
+        process.env.ARBITRUM_ALCHEMY_RPC_URL ||
+        "https://arb1.arbitrum.io/rpc",
+      chainId: 42161,
+      accounts: deployerAccounts(),
+    },
+    "arbitrum-sepolia": {
+      url:
+        process.env.ARBITRUM_SEPOLIA_RPC_URL ||
+        "https://sepolia-rollup.arbitrum.io/rpc",
+      chainId: 421614,
+      accounts: deployerAccounts(),
     },
   },
 };

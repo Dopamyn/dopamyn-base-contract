@@ -17,6 +17,16 @@ function getTokenAddressForNetwork(networkName: string): string | undefined {
         process.env.BASE_MAINNET_USDC_ADDRESS ||
         "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
       );
+    case "arbitrum":
+      return (
+        process.env.ARBITRUM_MAINNET_USDC_ADDRESS ||
+        "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+      );
+    case "arbitrum-sepolia":
+      return (
+        process.env.ARBITRUM_SEPOLIA_USDC_ADDRESS ||
+        "0x75faf114eafb1BDbe2Ff44834Adf6D4B8f2f6C4"
+      );
     case "hedera-testnet":
       return process.env.HEDERA_TESTNET_TOKEN_ADDRESS;
     default:
@@ -72,9 +82,13 @@ async function verifyDeployment(
     return;
   }
 
-  if (!process.env.BASESCAN_API_KEY) {
+  const explorerApiKey =
+    process.env.ETHERSCAN_API_KEY ||
+    process.env.ARBISCAN_API_KEY ||
+    process.env.BASESCAN_API_KEY;
+  if (!explorerApiKey) {
     console.warn(
-      "BASESCAN_API_KEY not set — skipping verification. Run `npx hardhat verify` manually once it's configured."
+      "ETHERSCAN_API_KEY / ARBISCAN_API_KEY / BASESCAN_API_KEY not set — skipping verification. Run `npx hardhat verify` manually once it's configured."
     );
     return;
   }
